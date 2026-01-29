@@ -82,29 +82,43 @@ def analyze_leakage(file, target_col, time_col, id_col):
         return f"Error: {str(e)}", None, None, None, "Failed"
 
 # UI Layout
-with gr.Blocks(title="Data Leakage Early Warning System") as app:
-    gr.Markdown("# 🛡️ Data Leakage Early Warning System")
-    gr.Markdown("Upload your dataset to detect Target Leakage, Time Leakage, and Proxy features before training.")
+with gr.Blocks(title="LeakGuard: Data Leakage Detection", theme=gr.themes.Soft()) as app:
+    
+    # State validation across updates
     
     with gr.Row():
         with gr.Column(scale=1):
-            file_input = gr.File(label="Upload CSV Dataset", file_types=[".csv"])
-            target_dropdown = gr.Dropdown(label="Select Target Column", interactive=True)
-            time_dropdown = gr.Dropdown(label="Select Time Column (Optional)", interactive=True)
-            id_dropdown = gr.Dropdown(label="Select Entity ID Column (Optional)", interactive=True)
-            analyze_btn = gr.Button("🔍 Analyze Leakage", variant="primary")
+            gr.Markdown("## 🛡️ LeakGuard\nEarly Warning System for Data Leakage")
+        with gr.Column(scale=4):
+             status_output = gr.Markdown("Ready to analyze.")
+
+    with gr.Sidebar():
+        gr.Markdown("### 1. Data Setup")
+        file_input = gr.File(label="Upload Dataset (CSV)", file_types=[".csv"])
         
-        with gr.Column(scale=2):
-            status_output = gr.Markdown("Waiting for input...")
-            summary_output = gr.Markdown("")
-    
+        gr.Markdown("### 2. Column Mapping")
+        target_dropdown = gr.Dropdown(label="Target Column", interactive=True)
+        with gr.Accordion("Optional Settings", open=False):
+            time_dropdown = gr.Dropdown(label="Time Column", interactive=True)
+            id_dropdown = gr.Dropdown(label="Entity ID", interactive=True)
+            
+        analyze_btn = gr.Button("🔍 Analyze Leakage", variant="primary")
+        gr.Markdown("---")
+        gr.Markdown("Developed for Kaggle/HF Spaces.")
+
+    # Main Dashboard Area
     with gr.Tabs():
-        with gr.TabItem("Detailed Report"):
-            result_table = gr.Dataframe(label="Feature Risk Analysis")
-        with gr.TabItem("Visualizations"):
+        with gr.TabItem("📊 Dashboard"):
+            gr.Markdown("### High-Level Summary")
+            summary_output = gr.Markdown("Please upload a file and run analysis.")
+            
             with gr.Row():
-                corr_plot = gr.Plot(label="Correlation Heatmap")
                 risk_plot = gr.Plot(label="Feature Risk Chart")
+                corr_plot = gr.Plot(label="Correlation Heatmap")
+                
+        with gr.TabItem("📋 Detailed Report"):
+            gr.Markdown("### Feature-Level Analysis")
+            result_table = gr.Dataframe(label="Risk Table", interactive=False)
 
     # Interactivity
     file_input.change(load_columns, inputs=file_input, outputs=[target_dropdown, time_dropdown, id_dropdown])
