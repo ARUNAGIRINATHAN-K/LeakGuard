@@ -589,10 +589,6 @@ with gr.Blocks(title="LeakGuard - Data Leakage Detection", theme=gr.themes.Soft(
             analyze_btn = gr.Button("🔍 Analyze Leakage", variant="primary", size="lg")
             
             file_input.change(load_columns, inputs=file_input, outputs=[target_dropdown, time_dropdown, id_dropdown])
-        
-        with gr.Column(scale=2):
-            gr.Markdown("### 📊 Analysis Results")
-            report_output = gr.Markdown(label="Leakage Report", value="Upload a CSV and click Analyze to see results")
     
     gr.Markdown("---")
     
@@ -618,14 +614,14 @@ with gr.Blocks(title="LeakGuard - Data Leakage Detection", theme=gr.themes.Soft(
     # Connect analyze button to all outputs
     def run_and_display(file, target_col, time_col, id_col):
         if file is None or not target_col:
-            return "❌ Please upload a file and select a target column.", pd.DataFrame(), None, None, None, None, None
+            return pd.DataFrame(), None, None, None, None, None
         
         report, summary_df, fig_target_data, fig_time_data, fig_dup_data, fig_proxy_data, fig_summary_data = run_complete_analysis(file, target_col, time_col, id_col)
-        return report, summary_df, fig_summary_data, fig_target_data, fig_dup_data, fig_proxy_data, fig_time_data
+        return summary_df, fig_summary_data, fig_target_data, fig_dup_data, fig_proxy_data, fig_time_data
     
     analyze_btn.click(run_and_display, 
                      inputs=[file_input, target_dropdown, time_dropdown, id_dropdown],
-                     outputs=[report_output, summary_table, fig_summary, fig_target, fig_dup, fig_proxy, fig_time])
+                     outputs=[summary_table, fig_summary, fig_target, fig_dup, fig_proxy, fig_time])
 
 if __name__ == "__main__":
     app.launch()
