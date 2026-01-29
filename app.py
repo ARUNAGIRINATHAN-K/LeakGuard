@@ -620,12 +620,12 @@ with gr.Blocks(title="LeakGuard - Data Leakage Detection", theme=gr.themes.Soft(
         if file is None or not target_col:
             return "❌ Please upload a file and select a target column.", pd.DataFrame(), None, None, None, None, None
         
-        report, summary_df, fig_target, fig_time, fig_dup, fig_proxy, fig_summary = run_complete_analysis(file, target_col, time_col, id_col)
-        return report, summary_df, fig_target, fig_time, fig_dup, fig_proxy, fig_summary
+        report, summary_df, fig_target_data, fig_time_data, fig_dup_data, fig_proxy_data, fig_summary_data = run_complete_analysis(file, target_col, time_col, id_col)
+        return report, summary_df, fig_summary_data, fig_target_data, fig_dup_data, fig_proxy_data, fig_time_data
     
     analyze_btn.click(run_and_display, 
                      inputs=[file_input, target_dropdown, time_dropdown, id_dropdown],
-                     outputs=[report_output, summary_table, "fig_target", "fig_time", "fig_dup", "fig_proxy", "fig_summary"])
+                     outputs=[report_output, summary_table, fig_summary, fig_target, fig_dup, fig_proxy, fig_time])
 
 if __name__ == "__main__":
     app.launch()
