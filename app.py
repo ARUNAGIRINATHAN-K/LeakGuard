@@ -249,7 +249,7 @@ def run_complete_analysis(file, target_col, time_col, id_col):
     
     # Generate visualizations
     fig_target = plot_target_leakage(target_leakage)
-    fig_time = plot_time_leakage(time_leakage) if time_leakage else None
+    fig_time = plot_time_leakage(time_leakage)
     fig_dup = plot_duplicate_leakage(duplicate_leakage, len(df))
     fig_proxy = plot_proxy_leakage(proxy_leakage)
     fig_summary = plot_risk_summary(target_leakage, time_leakage, proxy_leakage, duplicate_leakage)
@@ -427,7 +427,14 @@ def plot_target_leakage(target_leak):
 def plot_time_leakage(time_leak):
     """Plot time leakage correlation drift"""
     if not time_leak:
-        return None
+        # Create placeholder plot when no time column provided
+        fig, ax = plt.subplots(figsize=(12, 5))
+        ax.text(0.5, 0.5, 'Time Leakage Analysis\n\nNo time column provided\nSelect a time column to enable this analysis', 
+                ha='center', va='center', fontsize=14, color='gray',
+                transform=ax.transAxes, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+        ax.axis('off')
+        plt.tight_layout()
+        return fig
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
     fig.suptitle('Time Leakage Analysis', fontsize=14, fontweight='bold')
