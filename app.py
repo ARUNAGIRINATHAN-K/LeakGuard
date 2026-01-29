@@ -8,6 +8,8 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 import hashlib
 import warnings
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 warnings.filterwarnings('ignore')
 
 # ============================================================================
@@ -218,15 +220,15 @@ def detect_proxy_leakage(df, target_col):
 def run_complete_analysis(file, target_col, time_col, id_col):
     """Main analysis orchestrator"""
     if file is None:
-        return "❌ Please upload a CSV file first.", None, None, None
+        return "❌ Please upload a CSV file first.", None, None, None, None
     
     try:
         df = pd.read_csv(file.name)
     except Exception as e:
-        return f"❌ Error reading file: {str(e)}", None, None, None
+        return f"❌ Error reading file: {str(e)}", None, None, None, None
     
     if target_col not in df.columns:
-        return f"❌ Target column '{target_col}' not found in dataset.", None, None, None
+        return f"❌ Target column '{target_col}' not found in dataset.", None, None, None, None
     
     # Run all detections
     target_leakage = detect_target_leakage(df, target_col)
@@ -245,7 +247,14 @@ def run_complete_analysis(file, target_col, time_col, id_col):
     # Create summary table
     summary_df = create_summary_table(target_leakage, proxy_leakage)
     
-    return report, summary_df, target_leakage, proxy_leakage
+    # Generate visualizations
+    fig_target = plot_target_leakage(target_leakage)
+    fig_time = plot_time_leakage(time_leakage) if time_leakage else None
+    fig_dup = plot_duplicate_leakage(duplicate_leakage, len(df))
+    fig_proxy = plot_proxy_leakage(proxy_leakage)
+    fig_summary = plot_risk_summary(target_leakage, time_leakage, proxy_leakage, duplicate_leakage)
+    
+    return report, summary_df, fig_target, fig_time, fig_dup, fig_proxy, fig_summary
 
 def generate_report(df, target_col, target_leak, time_leak, dup_leak, proxy_leak):
     """Generate human-readable leakage report"""
@@ -375,6 +384,188 @@ def load_columns(file):
         return gr.update(), gr.update(), gr.update()
 
 # ============================================================================
+# VISUALIZATION FUNCTIONS
+# ============================================================================
+
+def plot_target_leakage(target_leak):
+    """Plot target leakage scores"""
+    if not target_leak:
+        return None
+    
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle('Target Leakage Analysis', fontsize=14, fontweight='bold')
+    
+    features = list(target_leak.keys())
+    mi_scores = [target_leak[f]['mi'] for f in features]
+    pearson_scores = [target_leak[f]['pearson'] for f in features]
+    spearman_scores = [target_leak[f]['spearman'] for f in features]
+    
+    # Sort by MI
+    sorted_idx = np.argsort(mi_scores)[::-1][:10]
+    
+    axes[0].barh([features[i] for i in sorted_idx], [mi_scores[i] for i in sorted_idx], color='#FF6B6B')
+    axes[0].set_xlabel('Mutual Information Score')
+    axes[0].set_title('Top Features by MI')
+    axes[0].axvline(0.5, color='red', linestyle='--', alpha=0.5, label='Risk Threshold')
+    axes[0].legend()
+    
+    axes[1].barh([features[i] for i in sorted_idx], [pearson_scores[i] for i in sorted_idx], color='#4ECDC4')
+    axes[1].set_xlabel('Pearson Correlation')
+    axes[1].set_title('Top Features by Pearson')
+    axes[1].axvline(0.8, color='red', linestyle='--', alpha=0.5, label='Risk Threshold')
+    axes[1].legend()
+    
+    axes[2].barh([features[i] for i in sorted_idx], [spearman_scores[i] for i in sorted_idx], color='#95E1D3')
+    axes[2].set_xlabel('Spearman Correlation')
+    axes[2].set_title('Top Features by Spearman')
+    axes[2].axvline(0.8, color='red', linestyle='--', alpha=0.5, label='Risk Threshold')
+    axes[2].legend()
+    
+    plt.tight_layout()
+    return fig
+
+def plot_time_leakage(time_leak):
+    """Plot time leakage correlation drift"""
+    if not time_leak:
+        return None
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    fig.suptitle('Time Leakage Analysis', fontsize=14, fontweight='bold')
+    
+    features = list(time_leak.keys())
+    drifts = [time_leak[f]['drift'] for f in features]
+    max_corrs = [time_leak[f]['max_corr'] for f in features]
+    
+    sorted_idx = np.argsort(drifts)[::-1][:10]
+    
+    ax1.barh([features[i] for i in sorted_idx], [drifts[i] for i in sorted_idx], color='#FFA07A')
+    ax1.set_xlabel('Correlation Drift')
+    ax1.set_title('Features with High Drift (Past→Future)')
+    ax1.axvline(0.3, color='red', linestyle='--', alpha=0.5, label='Risk Threshold')
+    ax1.legend()
+    
+    ax2.barh([features[i] for i in sorted_idx], [max_corrs[i] for i in sorted_idx], color='#FFB347')
+    ax2.set_xlabel('Max Correlation Over Time')
+    ax2.set_title('Peak Correlation Values')
+    ax2.axvline(0.8, color='red', linestyle='--', alpha=0.5, label='Risk Threshold')
+    ax2.legend()
+    
+    plt.tight_layout()
+    return fig
+
+def plot_duplicate_leakage(dup_leak, df_len):
+    """Plot duplicate leakage info"""
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    dup_ratio = dup_leak.get('duplicate_ratio', 0)
+    unique_ratio = 1 - dup_ratio
+    
+    colors = ['#FF6B6B' if dup_ratio > 0.05 else '#51CF66', '#D0D0D0']
+    labels = [f'Unique Rows ({unique_ratio*100:.2f}%)', f'Duplicates ({dup_ratio*100:.2f}%)']
+    
+    wedges, texts, autotexts = ax.pie([unique_ratio, dup_ratio], labels=labels, autopct='%1.1f%%', 
+                                        colors=colors, startangle=90, textprops={'fontsize': 11})
+    
+    ax.set_title('Duplicate Row Detection', fontsize=14, fontweight='bold', pad=20)
+    
+    # Add warning if duplicates detected
+    if dup_ratio > 0.05:
+        ax.text(0, -1.4, f'⚠️ WARNING: {dup_leak.get("duplicate_count", 0)} duplicate rows found!', 
+               ha='center', fontsize=10, color='red', fontweight='bold')
+    
+    plt.tight_layout()
+    return fig
+
+def plot_proxy_leakage(proxy_leak):
+    """Plot proxy leakage instability scores"""
+    if not proxy_leak:
+        return None
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    fig.suptitle('Proxy Leakage Analysis', fontsize=14, fontweight='bold')
+    
+    features = list(proxy_leak.keys())
+    variances = [proxy_leak[f]['importance_variance'] for f in features]
+    instability = [proxy_leak[f]['instability_score'] for f in features]
+    
+    sorted_idx = np.argsort(instability)[::-1][:10]
+    
+    ax1.barh([features[i] for i in sorted_idx], [variances[i] for i in sorted_idx], color='#A78BFA')
+    ax1.set_xlabel('Importance Variance')
+    ax1.set_title('Feature Importance Variance Across Seeds')
+    
+    ax2.barh([features[i] for i in sorted_idx], [instability[i] for i in sorted_idx], color='#F472B6')
+    ax2.set_xlabel('Instability Score')
+    ax2.set_title('Feature Importance Instability')
+    ax2.axvline(0.5, color='red', linestyle='--', alpha=0.5, label='Risk Threshold')
+    ax2.legend()
+    
+    plt.tight_layout()
+    return fig
+
+def plot_risk_summary(target_leak, time_leak, proxy_leak, dup_leak):
+    """Plot overall risk summary"""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    risk_categories = []
+    risk_scores = []
+    colors_list = []
+    
+    # Target Leakage Risk
+    high_target = sum(1 for f, s in target_leak.items() if s['mi'] > 0.5 or s['pearson'] > 0.8)
+    target_risk = (high_target / len(target_leak)) * 100 if target_leak else 0
+    risk_categories.append('Target\nLeakage')
+    risk_scores.append(target_risk)
+    colors_list.append('#FF6B6B' if target_risk > 30 else '#FFA500' if target_risk > 10 else '#51CF66')
+    
+    # Time Leakage Risk
+    if time_leak:
+        high_time = sum(1 for f, s in time_leak.items() if s['drift'] > 0.3)
+        time_risk = (high_time / len(time_leak)) * 100
+    else:
+        time_risk = 0
+    risk_categories.append('Time\nLeakage')
+    risk_scores.append(time_risk)
+    colors_list.append('#FFA07A' if time_risk > 30 else '#FFB347' if time_risk > 10 else '#51CF66')
+    
+    # Duplicate Leakage Risk
+    dup_ratio = dup_leak.get('duplicate_ratio', 0)
+    dup_risk = dup_ratio * 100
+    risk_categories.append('Duplicate\nLeakage')
+    risk_scores.append(dup_risk)
+    colors_list.append('#FF6B6B' if dup_risk > 5 else '#51CF66')
+    
+    # Proxy Leakage Risk
+    if proxy_leak:
+        high_proxy = sum(1 for f, s in proxy_leak.items() if s['instability_score'] > 0.5)
+        proxy_risk = (high_proxy / len(proxy_leak)) * 100
+    else:
+        proxy_risk = 0
+    risk_categories.append('Proxy\nLeakage')
+    risk_scores.append(proxy_risk)
+    colors_list.append('#F472B6' if proxy_risk > 30 else '#A78BFA' if proxy_risk > 10 else '#51CF66')
+    
+    bars = ax.bar(risk_categories, risk_scores, color=colors_list, edgecolor='black', linewidth=1.5)
+    ax.set_ylabel('Risk Score (%)', fontsize=11)
+    ax.set_title('Overall Data Leakage Risk Assessment', fontsize=14, fontweight='bold')
+    ax.set_ylim(0, 100)
+    
+    # Add value labels on bars
+    for bar in bars:
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+               f'{height:.1f}%', ha='center', va='bottom', fontweight='bold')
+    
+    # Add risk zones
+    ax.axhspan(0, 25, alpha=0.1, color='green', label='Low Risk')
+    ax.axhspan(25, 60, alpha=0.1, color='orange', label='Medium Risk')
+    ax.axhspan(60, 100, alpha=0.1, color='red', label='High Risk')
+    ax.legend(loc='upper right')
+    
+    plt.tight_layout()
+    return fig
+
+# ============================================================================
 # GRADIO UI
 # ============================================================================
 
@@ -408,17 +599,33 @@ with gr.Blocks(title="LeakGuard - Data Leakage Detection", theme=gr.themes.Soft(
     with gr.Row():
         summary_table = gr.Dataframe(label="Feature Risk Assessment", interactive=False)
     
+    gr.Markdown("### 📈 Visualization & Analysis")
+    
+    with gr.Row():
+        with gr.Column():
+            fig_summary = gr.Plot(label="Overall Risk Summary")
+        with gr.Column():
+            fig_target = gr.Plot(label="Target Leakage Analysis")
+    
+    with gr.Row():
+        fig_dup = gr.Plot(label="Duplicate Leakage Detection")
+        fig_proxy = gr.Plot(label="Proxy Leakage Analysis")
+    
+    with gr.Row():
+        fig_time = gr.Plot(label="Time Leakage Analysis")
+    
+    
     # Connect analyze button to all outputs
     def run_and_display(file, target_col, time_col, id_col):
         if file is None or not target_col:
-            return "❌ Please upload a file and select a target column.", pd.DataFrame()
+            return "❌ Please upload a file and select a target column.", pd.DataFrame(), None, None, None, None, None
         
-        report, summary_df, _, _ = run_complete_analysis(file, target_col, time_col, id_col)
-        return report, summary_df
+        report, summary_df, fig_target, fig_time, fig_dup, fig_proxy, fig_summary = run_complete_analysis(file, target_col, time_col, id_col)
+        return report, summary_df, fig_target, fig_time, fig_dup, fig_proxy, fig_summary
     
     analyze_btn.click(run_and_display, 
                      inputs=[file_input, target_dropdown, time_dropdown, id_dropdown],
-                     outputs=[report_output, summary_table])
+                     outputs=[report_output, summary_table, "fig_target", "fig_time", "fig_dup", "fig_proxy", "fig_summary"])
 
 if __name__ == "__main__":
     app.launch()
