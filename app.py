@@ -382,122 +382,43 @@ with gr.Blocks(title="LeakGuard - Data Leakage Detection", theme=gr.themes.Soft(
     
     gr.Markdown("# 🛡️ LeakGuard")
     gr.Markdown("*Detect silent data leakage risks before model training*")
+    gr.Markdown("---")
     
-    with gr.Tabs():
-        # Tab 1: Home
-        with gr.TabItem("🏠 Home"):
-            gr.Markdown("""
-            ## Welcome to LeakGuard
+    # Main interface
+    with gr.Row():
+        with gr.Column(scale=1):
+            gr.Markdown("### 📁 Upload & Configure")
+            file_input = gr.File(label="CSV Dataset", file_types=[".csv"])
             
-            LeakGuard analyzes CSV datasets **BEFORE** model training to detect silent data leakage risks that commonly cause models to fail in production.
+            gr.Markdown("### 🔧 Column Selection")
+            target_dropdown = gr.Dropdown(label="🎯 Target Column (Required)", interactive=True)
+            time_dropdown = gr.Dropdown(label="⏰ Time Column (Optional)", interactive=True)
+            id_dropdown = gr.Dropdown(label="🆔 Entity ID Column (Optional)", interactive=True)
             
-            ### What is Data Leakage?
-            
-            Data leakage occurs when information from outside the training set is used to create a model, artificially inflating its performance.
-            
-            ### Leakage Types We Detect
-            
-            1. **Target Leakage** 🎯
-               - Features containing direct/indirect target information
-               - Uses: Mutual Information, Pearson & Spearman correlation
-            
-            2. **Time Leakage** ⏰
-               - Future information leaking into past samples
-               - Uses: Correlation drift, rolling window analysis
-            
-            3. **Duplicate/Split Leakage** 🔄
-               - Same samples appearing across logical splits
-               - Uses: Row hashing, entity ID overlap detection
-            
-            4. **Proxy Leakage** 🎭
-               - Features acting as hidden proxies for the target
-               - Uses: Feature importance instability analysis
-            
-            ### Quick Start
-            
-            1. Go to **Data Upload**
-            2. Upload your CSV file
-            3. Select target column (mandatory)
-            4. Optionally select time and entity ID columns
-            5. Click **🔍 Analyze** to run all checks
-            6. Review the leakage report
-            """)
-        
-        # Tab 2: Data Upload & Analysis
-        with gr.TabItem("📤 Upload & Analyze"):
-            with gr.Row():
-                with gr.Column(scale=1):
-                    file_input = gr.File(label="📁 Upload CSV Dataset", file_types=[".csv"])
-                    
-                    gr.Markdown("### Column Configuration")
-                    target_dropdown = gr.Dropdown(label="🎯 Target Column (Required)", interactive=True)
-                    time_dropdown = gr.Dropdown(label="⏰ Time Column (Optional)", interactive=True)
-                    id_dropdown = gr.Dropdown(label="🆔 Entity ID Column (Optional)", interactive=True)
-                    
-                    analyze_btn = gr.Button("🔍 Analyze Leakage", variant="primary", size="lg")
-                
-                with gr.Column(scale=2):
-                    status_output = gr.Textbox(label="Status", interactive=False, lines=3)
+            analyze_btn = gr.Button("🔍 Analyze Leakage", variant="primary", size="lg")
             
             file_input.change(load_columns, inputs=file_input, outputs=[target_dropdown, time_dropdown, id_dropdown])
-            analyze_btn.click(run_complete_analysis, 
-                            inputs=[file_input, target_dropdown, time_dropdown, id_dropdown],
-                            outputs=[status_output, status_output, status_output, status_output])
         
-        # Tab 3: Leakage Report
-        with gr.TabItem("📊 Leakage Report"):
-            report_output = gr.Markdown(label="Analysis Report")
-            
-            # Connect analyze button to report output
-            def update_report(file, target_col, time_col, id_col):
-                if file is None or not target_col:
-                    return "❌ Please upload a file and select a target column."
-                report, _, _, _ = run_complete_analysis(file, target_col, time_col, id_col)
-                return report
-            
-            file_input2 = gr.File(label="Upload CSV", file_types=[".csv"], visible=False)
-            target_dropdown2 = gr.Dropdown(label="Target Column", interactive=True, visible=False)
-            time_dropdown2 = gr.Dropdown(label="Time Column", interactive=True, visible=False)
-            id_dropdown2 = gr.Dropdown(label="Entity ID Column", interactive=True, visible=False)
+        with gr.Column(scale=2):
+            gr.Markdown("### 📊 Analysis Results")
+            report_output = gr.Markdown(label="Leakage Report", value="Upload a CSV and click Analyze to see results")
+    
+    gr.Markdown("---")
+    
+    with gr.Row():
+        summary_table = gr.Dataframe(label="Feature Risk Assessment", interactive=False)
+    
+    # Connect analyze button to all outputs
+    def run_and_display(file, target_col, time_col, id_col):
+        if file is None or not target_col:
+            return "❌ Please upload a file and select a target column.", pd.DataFrame()
         
-        # Tab 4: Feature Summary
-        with gr.TabItem("📋 Feature Summary"):
-            summary_table = gr.Dataframe(label="Risk Assessment Table", interactive=False)
-        
-        # Tab 5: About
-        with gr.TabItem("ℹ️ About"):
-            gr.Markdown("""
-            ## About LeakGuard
-            
-            **LeakGuard** is a CPU-based data leakage detection system designed for production use.
-            
-            ### Technical Stack
-            - **Framework**: Gradio (Web UI)
-            - **Data**: Pandas, NumPy
-            - **ML**: Scikit-learn
-            - **Stats**: SciPy
-            - **Viz**: Matplotlib
-            
-            ### Architecture
-            
-            ✅ **CPU-Only** - No GPU or LLM dependencies  
-            ✅ **Explainable** - All detections have clear statistical basis  
-            ✅ **Fast** - Processes typical datasets in seconds  
-            ✅ **Production-Ready** - Handles large datasets efficiently  
-            
-            ### Why LeakGuard?
-            
-            Detecting data leakage manually is:
-            - 🔴 **Time-consuming** - Requires deep statistical analysis
-            - 🔴 **Error-prone** - Easy to miss subtle patterns
-            - 🔴 **Unreliable** - Depends on human expertise
-            
-            LeakGuard automates this process with proven statistical methods.
-            
-            ### License & Support
-            
-            Open source | Developed for Kaggle & Hugging Face
-            """)
+        report, summary_df, _, _ = run_complete_analysis(file, target_col, time_col, id_col)
+        return report, summary_df
+    
+    analyze_btn.click(run_and_display, 
+                     inputs=[file_input, target_dropdown, time_dropdown, id_dropdown],
+                     outputs=[report_output, summary_table])
 
 if __name__ == "__main__":
     app.launch()
