@@ -1,23 +1,22 @@
----
-title: LeakGuard
-emoji: 🛡️
-colorFrom: purple
-colorTo: blue
-sdk: gradio
-sdk_version: 6.5.0
-app_file: app.py
-pinned: false
-license: apache-2.0
-short_description: Detect silent data leakage risks before model training
----
+<div text-align="center">
 
-# 🛡️ LeakGuard
+#  LeakGuard
 
-**Detect silent data leakage risks BEFORE model training**
+*A web app that analyzes a CSV dataset BEFORE model training and detects silent data leakage risks that commonly cause models to fail in production.*
 
-LeakGuard analyzes CSV datasets to detect four critical types of data leakage that commonly cause models to fail in production.
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Gradio](https://img.shields.io/badge/Gradio-UI-FF6F00?style=flat&logo=gradio&logoColor=white)](https://gradio.app/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?style=flat&logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
+[![Pandas](https://img.shields.io/badge/Pandas-Data-150458?style=flat&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+[![NumPy](https://img.shields.io/badge/NumPy-013243?style=flat&logo=numpy&logoColor=white)](https://numpy.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-## 🎯 What It Detects
+[![Live Demo](https://img.shields.io/badge/🤗%20Live%20Demo-Hugging%20Face-yellow?style=for-the-badge)](https://huggingface.co/spaces/ARUNAGIRINATHAN/leakguard)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/ARUNAGIRINATHAN-K/LeakGuard)
+
+</div>
+
+## What It Detects
 
 | Type | Detection Method | Risk Indicators |
 |------|-----------------|-----------------|
