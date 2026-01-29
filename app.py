@@ -1,10 +1,11 @@
 import gradio as gr
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-from leakage_detector import LeakageDetector
 
-def load_columns(file):
+def greet(name):
+    return "Hello " + name + "!!"
+
+demo = gr.Interface(fn=greet, inputs="text", outputs="text")
+    
+demo.launch()
     try:
         df = pd.read_csv(file.name, nrows=5) # Read only header/small sample
         cols = list(df.columns)
